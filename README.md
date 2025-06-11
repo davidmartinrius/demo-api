@@ -38,6 +38,29 @@ Drop **`.pdf`, `.txt`, `.md` …** into **`./documents/`** and the server will a
 
 ---
 
+## 🐳 Run with Docker (local)
+
+Prefer containers?  Build the image once and run it locally—no Python or
+virtual‑env required.
+
+```bash
+# build (uses the Dockerfile in the repo root)
+docker build -t rag-demo:local .
+
+# run the container exposing port 8080
+#   - mount ./documents into /app/documents so you can edit docs without rebuilds
+#   - faiss_index will be written inside the container
+
+docker run --rm -p 8080:8080 \
+  -v $(pwd)/documents:/app/documents \
+  rag-demo:local
+```
+
+*Image size*: ~2 GB the first time (PyTorch + sentence‑transformers). Subsequent runs use the local Docker cache.  
+*Live reload*: `uvicorn` auto‑reload isn’t available inside the container; restart the container to re‑index added docs.
+
+---
+
 ## 🔗 Endpoints
 
 | Method | Path | Purpose |
