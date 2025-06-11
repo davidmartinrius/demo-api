@@ -1,0 +1,72 @@
+# ─────────── Python ───────────
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+.pipenv/
+.pyenv/
+# pip-tools output
+*.txt~  # pip-compile backups
+
+# Jupyter / IPython
+.ipynb_checkpoints/
+profile_default/
+# IPython history
+.history
+
+# pytest
+.cache/
+.pytest_cache/
+
+# Coverage reports
+coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# ─────────── Secrets / env vars ───────────
+.env
+.env.*
+*.secret
+*.key.json
+
+# ─────────── IDEs ───────────
+# VS Code
+.vscode/
+# PyCharm / IntelliJ
+.idea/
+*.iml
+# Sublime
+*.sublime-workspace
+*.sublime-project
+
+# ─────────── Operating system files ───────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─────────── Docker / Cloud artifacts ───────────
+# Local Docker layer cache
+**/.dockerignore
+docker-compose.override.yml
+# Cloud Build temporary files
+.cloudbuild-local/
+
+# ─────────── Logs & temp ───────────
+*.log
+logs/
+tmp/
+*.swp
+*.swo
+
+key.json
