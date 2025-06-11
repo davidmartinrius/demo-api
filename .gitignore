@@ -70,3 +70,5 @@ tmp/
 *.swo
 
 key.json
+
+faiss_index/
