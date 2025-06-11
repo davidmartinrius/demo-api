@@ -1,12 +1,10 @@
-fastapi
-uvicorn[standard]
-torch
+fastapi==0.115.12
+uvicorn[standard]==0.34.3
 transformers==4.41.0
 sentence-transformers==2.6.1
-faiss-cpu            # vector index
+faiss-cpu==1.11.0
 langchain==0.1.16
-langchain-community
+langchain-community==0.0.37
 langchain-core==0.1.51
-transformers
-pypdf
-g4f[all]
+pypdf==5.6.0
+g4f[all]==0.5.3.2

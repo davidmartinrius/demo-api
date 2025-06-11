@@ -29,7 +29,6 @@ import pathlib
 import random
 from typing import List
 
-import torch
 from fastapi import FastAPI, Query
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.schema import Document

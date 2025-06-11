@@ -1,26 +1,35 @@
 substitutions:
   _REGION: "europe-west1"
-  _REPO: "demo-repo"
+  _REPO:   "rag-demo-repo"           
 
 steps:
-# 1. Build image
+# 1. Build
 - name: "gcr.io/cloud-builders/docker"
-  args: ["build", "-t", "$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/demo-api:$SHORT_SHA", "."]
+  args:
+    - build
+    - -t
+    - "$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/rag-demo:$SHORT_SHA"
+    - "."
 
-# 2. Push image
+# 2. Push
 - name: "gcr.io/cloud-builders/docker"
-  args: ["push", "$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/demo-api:$SHORT_SHA"]
+  args:
+    - push
+    - "$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/rag-demo:$SHORT_SHA"
 
-# 3. Deploy to Cloud Run
+# 3. Deploy to Cloud Run
 - name: "gcr.io/cloud-builders/gcloud"
   args:
-    ["run", "deploy", "demo-api",
-     "--image", "$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/demo-api:$SHORT_SHA",
-     "--region", "$_REGION",
-     "--platform", "managed",
-     "--allow-unauthenticated",
-     "--memory", "512Mi",
-     "--min-instances", "0"]
+    - run
+    - deploy
+    - rag-demo                     
+    - --image=$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/rag-demo:$SHORT_SHA
+    - --region=$_REGION
+    - --platform=managed
+    - --allow-unauthenticated
+    - --memory=1Gi                
+    - --min-instances=0
+    - --max-instances=3
 
 images:
-- "$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/demo-api:$SHORT_SHA"
+- "$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/rag-demo:$SHORT_SHA"

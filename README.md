@@ -1,145 +1,170 @@
-# 📚 FastAPI + LangChain RAG Demo
+# 📚 FastAPI + LangChain RAG Demo (gpt4free edition)
 
-A minimal **retrieval‑augmented generation (RAG)** service that runs entirely on **CPU**—perfect for local testing and effortless deployment to **Google Cloud Run**.
-
-- **LLM**: `google/flan‑t5‑small` (≈80 MB)
-- **Vector store**: FAISS (in‑memory, persisted to `/tmp`)
-- **Embeddings**: `sentence‑transformers/all‑MiniLM‑L6‑v2`
-- **Frameworks**: FastAPI · LangChain · Hugging Face Transformers
-
-The service exposes three HTTP endpoints:
-
-| Method | Path        | Description                               |
-|--------|-------------|-------------------------------------------|
-| POST   | `/predict`  | Dummy numeric prediction (example)        |
-| GET    | `/generate` | Direct text generation with the LLM       |
-| GET    | `/rag`      | Retrieval‑augmented QA (with fallback)    |
-
-If no document is relevant, `/rag` returns a polite **“Sorry, I don't have enough information to answer that.”** message.
+A lightweight **retrieval‑augmented generation (RAG)** micro‑service you can run on any laptop (CPU‑only) or deploy cheaply to **Google Cloud Run**—with **no LLM API key** required.  
+It embeds your local documents with **sentence‑transformers**, stores them in **FAISS**, retrieves the most relevant chunks, and asks **gpt4free** (GPT‑4‑class) to craft an answer.
 
 ---
 
-## 🚀 Quick Start (local, no Docker)
+## ✨ Stack at a glance
+
+| Layer | Component |
+|-------|-----------|
+| **LLM**        | *gpt4free* (auto‑selects a live GPT‑4 endpoint) |
+| **Embeddings** | `sentence‑transformers/all‑MiniLM‑L6‑v2` |
+| **Vector DB**  | FAISS (persisted on disk) |
+| **Frameworks** | FastAPI · LangChain |
+| **Docs folder**| `./documents/` (next to `rag_demo_fastapi.py`) |
+
+Default knobs: **chunk = 800 chars**, **top‑k = 8**, **max_tokens = 256** – all configurable at the top of the script.
+
+---
+
+## 🚀 Quick start (local)
 
 ```bash
+# 1 – (optional) create a virtual‑env
 python -m venv .venv && source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
 
-# Optional – point to your own knowledge base
-export DOCS_DIR=/absolute/path/to/docs  # default is ./docs
+# 2 – install dependencies
+yes | pip install --upgrade pip
+pip install "fastapi[all]" uvicorn sentence-transformers langchain langchain-community
+pip install --no-binary :all: g4f --upgrade   # g4f sometimes needs --no-binary
 
-python -m uvicorn main:app --reload --port 8080
+# 3 – run the API with auto‑reload
+python -m uvicorn rag_demo_fastapi:app --reload --port 8080
 ```
+
+Drop **`.pdf`, `.txt`, `.md` …** into **`./documents/`** and the server will auto‑reload and re‑index them.
+
+---
+
+## 🔗 Endpoints
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `GET`  | `/generate?prompt=…`  | Raw chat completion via *gpt4free* |
+| `GET`  | `/rag?question=…`    | Retrieval‑augmented answer sourced from your docs |
+| `GET`  | `/ingested_docs`     | JSON preview of the indexed documents |
+
+Examples:
 
 ```bash
-# Smoke tests
-curl -X POST http://localhost:8080/predict
-curl "http://localhost:8080/generate?prompt=What%20is%20Cloud%20Run?"
-curl "http://localhost:8080/rag?question=What%20does%20Flan‑T5%20stand%20for?"
+curl "http://localhost:8080/generate?prompt=Hello%2C+who+are+you%3F"
+
+curl "http://localhost:8080/rag?question=Which+programming+languages+are+mentioned%3F"
 ```
 
 ---
 
-## 🐳 Run inside Docker
+## ☁️ Deploy to Google Cloud Run (step‑by‑step)
+
+> These commands create a brand‑new project, link billing, set a spending cap, build the image with Cloud Build, push to Artifact Registry, and deploy to Cloud Run.
 
 ```bash
-# Build once
-docker build -t demo-api:local .
+# 0 – choose IDs up front ------------------------------------------------------
+export PROJECT_ID="your-project-$(date +%s)"   # e.g. drius-ai-run-1718123456
+export REGION="europe-west1"                   # pick any Cloud Run region
 
-# Run, exposing port 8080
-# Mount your docs folder and pass DOCS_DIR env var (optional)
-docker run --rm -p 8080:8080   -v $(pwd)/docs:/app/docs   -e DOCS_DIR=/app/docs   demo-api:local
+# 1 – list billing accounts and pick one --------------------------------------
+gcloud beta billing accounts list
+export BILLING_ID="0123A4-B5C6D7-89EF01"       # replace with your account ID
+
+# 2 – create & link the project ----------------------------------------------
+gcloud projects create $PROJECT_ID --name="rag-demo"
+gcloud beta billing projects link $PROJECT_ID \
+  --billing-account=$BILLING_ID
+
+# 3 – (optional) set a budget so you never overspend --------------------------
+gcloud beta billing budgets create \
+  --billing-account=$BILLING_ID \
+  --display-name="demo-limit" \
+  --budget-amount=5EUR
+
+# 4 – enable required services ------------------------------------------------
+gcloud services enable \
+  run.googleapis.com \
+  artifactregistry.googleapis.com \
+  cloudbuild.googleapis.com \
+  logging.googleapis.com \
+  monitoring.googleapis.com
+
+# 5 – configure gcloud defaults ----------------------------------------------
+gcloud config set project $PROJECT_ID
+gcloud config set run/region $REGION
+
+# 6 – create an Artifact Registry repo (once) ---------------------------------
+gcloud artifacts repositories create rag-demo-repo \
+  --repository-format=docker \
+  --location=$REGION
+
+# 7 – build & push the container ---------------------------------------------
+gcloud builds submit \
+  --tag $REGION-docker.pkg.dev/$PROJECT_ID/rag-demo-repo/rag-demo:latest
+
+# 8 – deploy to Cloud Run ------------------------------------------------------
+gcloud run deploy rag-demo \
+  --image=$REGION-docker.pkg.dev/$PROJECT_ID/rag-demo-repo/rag-demo:latest \
+  --region=$REGION \
+  --platform=managed \
+  --memory=1Gi \
+  --min-instances=0 \
+  --max-instances=3 \
+  --allow-unauthenticated
+
+# 9 – grab the HTTPS URL -------------------------------------------------------
+gcloud run services describe rag-demo --region=$REGION --format="value(status.url)"
 ```
 
-*Hint:* mount `~/.cache/huggingface` if you want to reuse model weights across runs.
+**What each step does**
 
----
+| Step | Purpose |
+|------|---------|
+| 0‑1 | Pick names & billing account. |
+| 2   | Creates a new GCP project and links billing. |
+| 3   | Sets a hard budget cap (optional but recommended). |
+| 4   | Enables Cloud Run, Cloud Build, Artifact Registry, Logging, Monitoring. |
+| 5   | Sets gcloud defaults so you don’t repeat flags. |
+| 6   | Creates a private Docker repo in Artifact Registry. |
+| 7   | Cloud Build builds the Dockerfile and pushes the image. |
+| 8   | Deploys the container to Cloud Run with 0 → 3 autoscaling instances. |
+| 9   | Prints the public HTTPS endpoint. |
 
-## ☁️ Deploy on Google Cloud Run (via Cloud Build trigger)
-
-1. **Artifact Registry** repo already set up (`demo-repo`).
-2. Push to `main` → Cloud Build:
-   * builds the container
-   * pushes it to Artifact Registry
-   * deploys it to Cloud Run (`europe‑west1`)
-3. Fetch the live URL:
-   ```bash
-   gcloud run services describe demo-api      --region europe-west1      --format="value(status.url)"
-   ```
-
-> Adjust region or memory in `cloudbuild.yaml` as needed.
-
----
-
-## 🗂️ Knowledge‑base files
-
-Place **`.txt`, `.md`, or `.pdf`** files inside the folder pointed to by `DOCS_DIR` (default `./docs/`).
-
-Example download script:
+After deployment, test:
 ```bash
-bash scripts/bootstrap_docs.sh   # populates docs/ with three sample files
-```
-
-The app indexes (or reloads) documents at startup; no restart is needed for *uvicorn --reload*.
-
----
-
-## 🔌 Environment variables
-
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `DOCS_DIR` | `docs` | Path (inside container or host) to the folder with knowledge documents |
-| `PORT`     | `8080` | Cloud Run listens on this port |
-
----
-
-## 📖 API Reference
-
-### `/generate`
-```
-GET /generate?prompt=Translate"Hello"toSpanish
-```
-Response
-```json
-{
-  "prompt": "Translate "Hello" to Spanish",
-  "completion": "Hola"
-}
-```
-
-### `/rag`
-```
-GET /rag?question=What+is+Cloud+Run?
-```
-Response
-```json
-{
-  "question": "What is Cloud Run?",
-  "answer": "Cloud Run is a fully‑managed Knative‑based platform that runs stateless containers and scales to zero, charging only while requests are processed.",
-  "sources": ["cloud_run.md"]
-}
+curl "$RAG_URL/rag?question=What+is+this+service%3F"
 ```
 
 ---
 
-## 🛠️ Project Structure
+## ⚙️ Tunable settings
+
+| Constant      | Default | Why it matters |
+|---------------|---------|----------------|
+| `CHUNK_SIZE`  | 800 chars | Coherence vs. recall |
+| `K`           | 8 chunks | Context depth vs. prompt size |
+| `MAX_TOKENS`  | 256 | Response length (provider limits vary) |
+| `EMBED_MODEL` | MiniLM-L6-v2 | Swap for higher accuracy / slower speed |
+| `VECTOR_PATH` | `./faiss_index` | Where FAISS index is persisted |
+
+---
+
+## 🗂️ Project structure
 ```
 .
-├── main.py               # FastAPI + LangChain app
-├── Dockerfile            # Container definition
-├── cloudbuild.yaml       # Build + push + deploy pipeline
-├── requirements.txt      # Python deps
-├── docs/                 # (your knowledge base files)
-└── README.md             # ← you are here
+├── rag_demo_fastapi.py   # FastAPI + LangChain application
+├── Dockerfile            # container definition (see docs)
+├── cloudbuild.yaml       # optional CI/CD pipeline
+├── documents/            # ← put your knowledge base here
+├── faiss_index/          # auto‑generated FAISS files
+└── README.md             # you are here
 ```
 
 ---
 
-## 📝 License & Credits
+## 📜 License & credits
 
 * Code: MIT
-* Models & embeddings: Apache‑2.0 / respective upstream licences (see their model cards)
-* Sample docs: MIT, Apache‑2.0, CC‑BY‑SA 3.0
+* gpt4free: © xtekky (GPL‑3) — use responsibly
+* Sentence‑transformers & FAISS: Apache‑2.0
 
-> Built with ❤️ using FastAPI, Hugging Face, LangChain and Google Cloud.
+> Built with ❤️ using FastAPI, LangChain, and a pinch of guerrilla GPT‑4 power.
