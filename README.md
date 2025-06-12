@@ -56,9 +56,6 @@ docker run --rm -p 8080:8080 \
   rag-demo:local
 ```
 
-*Image size*: ~2 GB the first time (PyTorch + sentence‑transformers). Subsequent runs use the local Docker cache.  
-*Live reload*: `uvicorn` auto‑reload isn’t available inside the container; restart the container to re‑index added docs.
-
 ---
 
 ## 🔗 Endpoints
