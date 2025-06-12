@@ -35,8 +35,11 @@ from langchain.schema import Document
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import DirectoryLoader, PyPDFLoader, TextLoader
 from langchain_community.vectorstores import FAISS
+from contextlib import asynccontextmanager
+from fastapi import Request
 
 import g4f  # GPT-4-free chat backend
+
 
 # ─────────────────────────── Config & logging ────────────────────────────────
 ROOT = pathlib.Path(__file__).parent
@@ -80,22 +83,29 @@ def load_documents(root: pathlib.Path) -> List[Document]:
     return docs
 
 
-raw_docs = load_documents(DOCS_DIR)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    raw_docs = load_documents(DOCS_DIR)
 
-# ───────────────────────────── Embeddings / FAISS ────────────────────────────
-embedder = HuggingFaceEmbeddings(model_name=EMBED_MODEL, cache_folder="/tmp/hf_cache")
-splitter = RecursiveCharacterTextSplitter(chunk_size=CHUNK_SIZE, chunk_overlap=100)
-chunks = splitter.split_documents(raw_docs)
+    embedder = HuggingFaceEmbeddings(model_name=EMBED_MODEL, cache_folder="/tmp/hf_cache")
+    splitter = RecursiveCharacterTextSplitter(chunk_size=CHUNK_SIZE, chunk_overlap=100)
+    chunks = splitter.split_documents(raw_docs)
 
-if VECTOR_PATH.exists():
-    db = FAISS.load_local(str(VECTOR_PATH), embedder, allow_dangerous_deserialization=True)
-    log.info("Loaded FAISS index from %s", VECTOR_PATH)
-else:
-    db = FAISS.from_documents(chunks, embedder)
-    db.save_local(str(VECTOR_PATH))
-    log.info("Built & saved new FAISS index (%d chunks)", len(chunks))
+    if VECTOR_PATH.exists():
+        db = FAISS.load_local(str(VECTOR_PATH), embedder, allow_dangerous_deserialization=True)
+        log.info("Loaded FAISS index from %s", VECTOR_PATH)
+    else:
+        db = FAISS.from_documents(chunks, embedder)
+        db.save_local(str(VECTOR_PATH))
+        log.info("Built & saved new FAISS index (%d chunks)", len(chunks))
 
-retriever = db.as_retriever(search_kwargs={"k": K})
+    app.state.raw_docs = raw_docs
+    app.state.retriever = db.as_retriever(search_kwargs={"k": K})
+
+    yield
+
+app = FastAPI(title="RAG Demo (gpt4free)", lifespan=lifespan)
+
 
 # ──────────────────────── g4f async wrapper ──────────────────────────────────
 async def gpt4_chat(prompt: str) -> str:
@@ -114,7 +124,6 @@ async def gpt4_chat(prompt: str) -> str:
         return "I don't know."
 
 # ───────────────────────────── FastAPI app ───────────────────────────────────
-app = FastAPI(title="RAG Demo (gpt4free)")
 
 def _sorry(q: str):
     return {"question": q, "answer": "I don't know.", "sources": []}
@@ -127,7 +136,8 @@ async def generate(prompt: str = Query(..., min_length=1)):
 
 # -------- RAG ----------------------------------------------------------------
 @app.get("/rag")
-async def rag(question: str = Query(..., min_length=1)):
+async def rag(request: Request, question: str = Query(..., min_length=1)):
+    retriever = request.app.state.retriever
     docs = retriever.get_relevant_documents(question)
     if not docs:
         return _sorry(question)
@@ -150,7 +160,9 @@ async def rag(question: str = Query(..., min_length=1)):
 
 # -------- Inspect docs -------------------------------------------------------
 @app.get("/ingested_docs")
-async def ingested_docs(limit: int = Query(50, ge=1)):
+async def ingested_docs(request: Request, limit: int = Query(50, ge=1)):
+    raw_docs = request.app.state.raw_docs
+
     out = []
     for i, d in enumerate(raw_docs[:limit]):
         out.append({

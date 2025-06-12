@@ -1,24 +1,28 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "🔧 PROJECT_ID=${PROJECT_ID:-<unset>}   REGION=${REGION:-<unset>}   BILLING_ID=${BILLING_ID:-<auto>}"
-
 ###############################################################################
 # 0) Sanity-check required env vars
 ###############################################################################
-: "${PROJECT_ID:?PROJECT_ID env var required}"
-: "${REGION:?REGION env var required}"
 
-# Auto-pick first OPEN billing account if not provided
-if [[ -z "${BILLING_ID:-}" ]]; then
-  BILLING_ID=$(gcloud beta billing accounts list \
-                 --filter="OPEN=true" \
-                 --format="value(name)" | head -n1)
-  if [[ -z "$BILLING_ID" ]]; then
-    echo "❌ No OPEN billing account found. Run 'gcloud beta billing accounts list'."
-    exit 1
-  fi
-  echo "ℹ️  Using detected billing account $BILLING_ID"
+: "${PROJECT_ID:=$(gcloud config get-value project)}"
+: "${REGION:=$(gcloud config get-value run/region)}"
+
+if [[ -z "$PROJECT_ID" || -z "$REGION" ]]; then
+  echo "❌ PROJECT_ID or REGION not set and could not be auto-detected from gcloud config."
+  exit 1
+fi
+
+echo "🔧 Using PROJECT_ID=$PROJECT_ID and REGION=$REGION"
+
+# Assign BILLING_ID if not already set
+: "${BILLING_ID:=$(gcloud beta billing accounts list \
+  --filter="OPEN=true" \
+  --format="value(name)" | head -n1)}"
+
+if [[ -z "$BILLING_ID" ]]; then
+  echo "❌ No OPEN billing account found. Run 'gcloud beta billing accounts list'."
+  exit 1
 fi
 
 ###############################################################################
@@ -88,7 +92,7 @@ fi
 echo "➜ Submitting Cloud Build (docker build → push → deploy)…"
 gcloud builds submit \
   --config=.cloudbuild.yaml \
-  --substitutions=_REGION=$REGION,_REPO=rag-demo-repo,SHORT_SHA=$(git rev-parse --short HEAD)
+  --substitutions=_REGION=$REGION,_REPO=rag-demo-repo,_TAG=$(git rev-parse --short HEAD)
 
 ###############################################################################
 # 7) Fetch URL & test ─────────────────────────────────────────────────────────

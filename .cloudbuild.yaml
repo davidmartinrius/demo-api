@@ -1,35 +1,44 @@
+# .cloudbuild.yaml  (copy / overwrite)
 substitutions:
-  _REGION: "europe-west1"
-  _REPO:   "rag-demo-repo"           
+  _REGION: "europe-west1"   # change if needed
+  _REPO:   "rag-demo-repo"
+  _TAG:    "manual"         # default when _TAG isn’t passed
+
+options:
+  substitutionOption: ALLOW_LOOSE   # let builds run when _TAG missing
 
 steps:
-# 1. Build
-- name: "gcr.io/cloud-builders/docker"
+# 1️⃣ Build
+- name: gcr.io/cloud-builders/docker
+  id: Build
   args:
     - build
     - -t
-    - "$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/rag-demo:$SHORT_SHA"
-    - "."
+    - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/rag-demo:${_TAG}"
+    - .
 
-# 2. Push
-- name: "gcr.io/cloud-builders/docker"
+# 2️⃣ Push
+- name: gcr.io/cloud-builders/docker
+  id: Push
   args:
     - push
-    - "$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/rag-demo:$SHORT_SHA"
+    - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/rag-demo:${_TAG}"
 
-# 3. Deploy to Cloud Run
-- name: "gcr.io/cloud-builders/gcloud"
+# 3️⃣ Deploy
+- name: gcr.io/cloud-builders/gcloud
+  id: Deploy
   args:
     - run
     - deploy
-    - rag-demo                     
-    - --image=$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/rag-demo:$SHORT_SHA
-    - --region=$_REGION
+    - rag-demo
+    - --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/rag-demo:${_TAG}
+    - --region=${_REGION}
     - --platform=managed
-    - --allow-unauthenticated
-    - --memory=1Gi                
+    - --memory=4Gi          
+    - --timeout=600s        
     - --min-instances=0
     - --max-instances=3
+    - --allow-unauthenticated
 
 images:
-- "$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/rag-demo:$SHORT_SHA"
+- "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/rag-demo:${_TAG}"
