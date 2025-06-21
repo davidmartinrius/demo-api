@@ -1,11 +1,10 @@
-# .cloudbuild.yaml  (copy / overwrite)
 substitutions:
-  _REGION: "europe-west1"   # change if needed
+  _REGION: "europe-west1"
   _REPO:   "rag-demo-repo"
-  _TAG:    "manual"         # default when _TAG isn’t passed
+  _TAG:    "manual"
 
 options:
-  substitutionOption: ALLOW_LOOSE   # let builds run when _TAG missing
+  substitutionOption: ALLOW_LOOSE
 
 steps:
 # 1️⃣ Build
@@ -34,8 +33,8 @@ steps:
     - --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/rag-demo:${_TAG}
     - --region=${_REGION}
     - --platform=managed
-    - --memory=4Gi          
-    - --timeout=600s        
+    - --memory=4Gi
+    - --timeout=600s
     - --min-instances=0
     - --max-instances=3
     - --allow-unauthenticated

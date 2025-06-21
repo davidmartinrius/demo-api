@@ -72,3 +72,5 @@ tmp/
 key.json
 
 faiss_index/
+
+importexporttools-ng.xpi
