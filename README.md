@@ -81,26 +81,25 @@ curl "http://localhost:8080/rag?question=Which+programming+languages+are+mention
 > These commands create a brand‑new project, link billing, set a spending cap, build the image with Cloud Build, push to Artifact Registry, and deploy to Cloud Run.
 
 ```bash
-# 0 – choose IDs up front ------------------------------------------------------
-export PROJECT_ID="your-project-$(date +%s)"   # e.g. drius-ai-run-1718123456
-export REGION="europe-west1"                   # pick any Cloud Run region
+# 0 – Define project and region
+export PROJECT_ID="rag-demo-$(date +%s)"
+export REGION="europe-west1"
 
-# 1 – list billing accounts and pick one --------------------------------------
+# 1 – Pick a billing account
 gcloud beta billing accounts list
-export BILLING_ID="0123A4-B5C6D7-89EF01"       # replace with your account ID
+export BILLING_ID="XXX-YYY-ZZZ"  # replace with your actual billing ID
 
-# 2 – create & link the project ----------------------------------------------
+# 2 – Create project and link billing
 gcloud projects create $PROJECT_ID --name="rag-demo"
-gcloud beta billing projects link $PROJECT_ID \
-  --billing-account=$BILLING_ID
+gcloud beta billing projects link $PROJECT_ID --billing-account=$BILLING_ID
 
-# 3 – (optional) set a budget so you never overspend --------------------------
+# 3 – (Optional) Set a budget limit
 gcloud beta billing budgets create \
   --billing-account=$BILLING_ID \
   --display-name="demo-limit" \
   --budget-amount=5EUR
 
-# 4 – enable required services ------------------------------------------------
+# 4 – Enable required APIs
 gcloud services enable \
   run.googleapis.com \
   artifactregistry.googleapis.com \
@@ -108,31 +107,24 @@ gcloud services enable \
   logging.googleapis.com \
   monitoring.googleapis.com
 
-# 5 – configure gcloud defaults ----------------------------------------------
+# 5 – Configure gcloud defaults
 gcloud config set project $PROJECT_ID
 gcloud config set run/region $REGION
 
-# 6 – create an Artifact Registry repo (once) ---------------------------------
+# 6 – Create Artifact Registry (if not exists)
 gcloud artifacts repositories create rag-demo-repo \
   --repository-format=docker \
   --location=$REGION
 
-# 7 – build & push the container ---------------------------------------------
+# 7 – Build & push using Cloud Build
 gcloud builds submit \
-  --tag $REGION-docker.pkg.dev/$PROJECT_ID/rag-demo-repo/rag-demo:latest
+  --config=.cloudbuild.yaml \
+  --substitutions=_REGION=$REGION,_REPO=rag-demo-repo,_TAG=latest
 
-# 8 – deploy to Cloud Run ------------------------------------------------------
-gcloud run deploy rag-demo \
-  --image=$REGION-docker.pkg.dev/$PROJECT_ID/rag-demo-repo/rag-demo:latest \
+# 8 – Get the public service URL
+gcloud run services describe rag-demo \
   --region=$REGION \
-  --platform=managed \
-  --memory=1Gi \
-  --min-instances=0 \
-  --max-instances=3 \
-  --allow-unauthenticated
-
-# 9 – grab the HTTPS URL -------------------------------------------------------
-gcloud run services describe rag-demo --region=$REGION --format="value(status.url)"
+  --format="value(status.url)"
 ```
 
 **What each step does**
@@ -160,11 +152,11 @@ curl "$RAG_URL/rag?question=What+is+this+service%3F"
 
 | Constant      | Default | Why it matters |
 |---------------|---------|----------------|
-| `CHUNK_SIZE`  | 800 chars | Coherence vs. recall |
-| `K`           | 8 chunks | Context depth vs. prompt size |
-| `MAX_TOKENS`  | 256 | Response length (provider limits vary) |
-| `EMBED_MODEL` | MiniLM-L6-v2 | Swap for higher accuracy / slower speed |
-| `VECTOR_PATH` | `./faiss_index` | Where FAISS index is persisted |
+| `CHUNK_SIZE`  | 800 chars | Size of each document split |
+| `K`           | 8 chunks | Number of chunks retrieved for context |
+| `MAX_TOKENS`  | 256 | LLM response limit |
+| `EMBED_MODEL` | MiniLM-L6-v2 | Embedding model from sentence-transformers |
+| `VECTOR_PATH` | `./faiss_index` | Path where FAISS index is saved |
 
 ---
 
@@ -187,4 +179,5 @@ curl "$RAG_URL/rag?question=What+is+this+service%3F"
 * gpt4free: © xtekky (GPL‑3) — use responsibly
 * Sentence‑transformers & FAISS: Apache‑2.0
 
-> Built with ❤️ using FastAPI, LangChain, and a pinch of guerrilla GPT‑4 power.
+> Developed using FastAPI and LangChain, with open-source tools that enable GPT‑4-level performance without proprietary APIs.
+
