@@ -1,26 +1,7 @@
-"""FastAPI + LangChain RAG (gpt4free, clean build)
-================================================
-A minimal yet functional RAG micro-service that:
-* Embeds local docs with **sentence-transformers** (FAISS index on disk).
-* Retrieves the top-k chunks and feeds them to **gpt4free** (GPT-4 quality) to
-  craft an answer.
-
-No API keys needed – `g4f` automatically picks a free provider.
-
-Quick start
------------
-```bash
-pip install "fastapi[all]" uvicorn sentence-transformers langchain
-pip install g4f  # may need: pip install --no-binary :all: g4f --upgrade
-python -m uvicorn rag_demo_fastapi:app --reload --port 8080
-```
-
-Endpoints
----------
-* **GET /generate?prompt=…** – plain GPT-4 chat completion.
-* **GET /rag?question=…**   – Retrieval-Augmented answer over your docs.
-* **GET /ingested_docs**    – quick preview of indexed docs.
+"""RAG micro-service (FastAPI + LangChain + FAISS + gpt4free).
+See README.md for quick-start commands and HTTP endpoints.
 """
+
 from __future__ import annotations
 
 import logging

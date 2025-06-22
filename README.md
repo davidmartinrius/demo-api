@@ -26,7 +26,7 @@ Default knobs: **chunk = 800 chars**, **top‑k = 8**, **max_tokens = 256
 python -m venv .venv && source .venv/bin/activate
 
 # 2 – install dependencies
-yes | pip install --upgrade pip
+pip install --upgrade pip
 pip install "fastapi[all]" uvicorn sentence-transformers langchain langchain-community
 pip install --no-binary :all: g4f --upgrade   # g4f sometimes needs --no-binary
 
