@@ -27,11 +27,15 @@ python -m venv .venv && source .venv/bin/activate
 
 # 2 – install dependencies
 pip install --upgrade pip
-pip install "fastapi[all]" uvicorn sentence-transformers langchain langchain-community
-pip install --no-binary :all: g4f --upgrade   # g4f sometimes needs --no-binary
+pip install -r requirements.txt
 
-# 3 – run the API with auto‑reload
-python -m uvicorn rag_demo_fastapi:app --reload --port 8080
+# 3 – run the API (pick one)
+
+# 3 a) via Uvicorn CLI — easiest to tweak flags
+uvicorn rag_demo_fastapi:app --reload --port 8080
+
+# 3 b) or simply run the file (hard-coded host/port)
+python rag_demo_fastapi.py
 ```
 
 Add new **`.pdf`, `.txt`, `.md` …** into **`./documents/`**, then restart the server or container to rebuild the FAISS index and include the new content.
