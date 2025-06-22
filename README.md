@@ -5,6 +5,12 @@ It embeds your local documents with **sentence‑transformers**, stores them in 
 
 ---
 
+[![Demo video](https://img.youtube.com/vi/qDrYGK2p-Co/hqdefault.jpg)](https://youtu.be/qDrYGK2p-Co)
+
+> **Watch:** *27-minute walkthrough — goals, live Cloud Run demo, code tour, CI/CD, and improvement ideas.*
+
+---
+
 ## ✨ Stack at a glance
 
 | Layer | Component |
