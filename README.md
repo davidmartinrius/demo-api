@@ -34,7 +34,7 @@ pip install --no-binary :all: g4f --upgrade   # g4f sometimes needs --no-binary
 python -m uvicorn rag_demo_fastapi:app --reload --port 8080
 ```
 
-Drop **`.pdf`, `.txt`, `.md` …** into **`./documents/`** and the server will auto‑reload and re‑index them.
+Add new **`.pdf`, `.txt`, `.md` …** into **`./documents/`**, then restart the server or container to rebuild the FAISS index and include the new content.
 
 ---
 
